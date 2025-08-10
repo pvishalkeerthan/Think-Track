@@ -7,18 +7,17 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createTest } from "@/actions/testActions";
-import toast from "react-hot-toast";
+// import toast from "react-hot-toast";  // TEMPORARILY COMMENTED OUT
 import Link from "next/link";
-import Lottie from 'lottie-react';
-import loadingAnimation from '../../../public/loading2.json';
-import loadingAnimationDark from '../../../public/loading.json';
+// import Lottie from 'lottie-react';  // TEMPORARILY COMMENTED OUT
+// import loadingAnimation from '../../../public/loading2.json';  // TEMPORARILY COMMENTED OUT
+// import loadingAnimationDark from '../../../public/loading.json';  // TEMPORARILY COMMENTED OUT
 
 const TestStartPage = () => {
   const { data: session, status } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [userPerformanceData, setUserPerformanceData] = useState(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
 
@@ -26,30 +25,14 @@ const TestStartPage = () => {
     title: "",
     description: "",
     numQuestions: 10,
-    difficulty: "medium", // default difficulty
+    difficulty: "medium",
     timeLimit: 30,
     tags: "",
   });
 
-  // Check for dark mode on client side only
+  // Simple client-side check
   useEffect(() => {
     setIsClient(true);
-    if (typeof document !== 'undefined' && typeof window !== 'undefined') {
-      setIsDarkMode(document.body.classList.contains('dark'));
-      
-      // Optional: Listen for dark mode changes
-      const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-            setIsDarkMode(document.body.classList.contains('dark'));
-          }
-        });
-      });
-      
-      observer.observe(document.body, { attributes: true });
-      
-      return () => observer.disconnect();
-    }
   }, []);
 
   // Function to fetch user's performance data
@@ -77,9 +60,8 @@ const TestStartPage = () => {
       }
     } catch (err) {
       console.error("Failed to fetch user performance:", err);
-      // Return default values for new users
       return {
-        averageScore: 65, // Default for new users
+        averageScore: 65,
         averageTimePerQuestion: 45,
         totalTests: 0,
         difficultyPerformance: {},
@@ -92,21 +74,17 @@ const TestStartPage = () => {
   const fetchAIPredictedDifficulty = async (performanceData) => {
     setIsLoadingAI(true);
     try {
-      // Use real user performance data instead of hardcoded values
       const requestData = {
-        score: performanceData.averageScore || 65, // Use actual average score
-        time_taken: performanceData.averageTimePerQuestion || 45, // Use actual average time
+        score: performanceData.averageScore || 65,
+        time_taken: performanceData.averageTimePerQuestion || 45,
         userId: session?.user?.id || null,
         subject: testDetails.tags || 'general',
-        // Additional context for better AI predictions
         totalTests: performanceData.totalTests || 0,
         difficultyPerformance: performanceData.difficultyPerformance || {},
         performanceTrends: performanceData.performanceTrends || { stable: true },
         learningPattern: performanceData.learningPattern || 'balanced_learner',
         recommendedDifficulty: performanceData.recommendedDifficulty
       };
-
-      console.log('Sending request to AI with real user data:', requestData);
 
       const res = await fetch('/api/predict-difficulty', {
         method: 'POST',
@@ -116,16 +94,11 @@ const TestStartPage = () => {
         body: JSON.stringify(requestData),
       });
 
-      console.log('Response status:', res.status);
-
       if (!res.ok) {
-        const errorData = await res.json().catch(() => null);
-        console.error('AI API Error Response:', errorData);
-        throw new Error(`Server error: ${res.status} - ${errorData?.error || 'Unknown error'}`);
+        throw new Error(`Server error: ${res.status}`);
       }
 
       const data = await res.json();
-      console.log('AI Response:', data);
 
       if (data.success && data.predicted_difficulty) {
         setTestDetails((prev) => ({
@@ -133,68 +106,32 @@ const TestStartPage = () => {
           difficulty: data.predicted_difficulty.toLowerCase(),
         }));
         
-        // Show success message with confidence and reasoning
-        const confidenceText = data.confidence ? ` (${data.confidence}% confidence)` : '';
-        const reasoningText = data.suggestion ? ` - ${data.suggestion}` : '';
-        
-        if (typeof window !== 'undefined') {
-          toast.success(
-            `AI suggested "${data.predicted_difficulty}" difficulty${confidenceText}${reasoningText}`, 
-            {
-              position: "top-center",
-              duration: 5000,
-            }
-          );
-        }
-        
-        // Log detailed AI analysis for debugging
-        if (data.factors) {
-          console.log('AI Analysis Factors:', data.factors);
-        }
-      } else {
-        throw new Error('Invalid response format from AI service');
+        // TOAST TEMPORARILY DISABLED
+        console.log(`AI suggested "${data.predicted_difficulty}" difficulty`);
       }
     } catch (err) {
       console.error("AI prediction failed:", err);
-      
-      // Fallback to rule-based recommendation if AI fails
       const fallbackDifficulty = getFallbackDifficulty(performanceData);
       if (fallbackDifficulty !== testDetails.difficulty) {
         setTestDetails((prev) => ({
           ...prev,
           difficulty: fallbackDifficulty,
         }));
-        if (typeof window !== 'undefined') {
-          toast.success(`Based on your performance, we recommend "${fallbackDifficulty}" difficulty`, {
-            position: "top-center",
-            duration: 4000,
-          });
-        }
-      } else {
-        if (typeof window !== 'undefined') {
-          toast.error("Failed to get AI difficulty suggestion. Using your current selection.", {
-            position: "top-center",
-            duration: 3000,
-          });
-        }
       }
     } finally {
       setIsLoadingAI(false);
     }
   };
 
-  // Fallback difficulty recommendation based on user performance
   const getFallbackDifficulty = (performanceData) => {
     if (!performanceData || performanceData.totalTests === 0) {
-      return "medium"; // Default for new users
+      return "medium";
     }
 
-    // Use the recommended difficulty from performance analysis if available
     if (performanceData.recommendedDifficulty) {
       return performanceData.recommendedDifficulty;
     }
 
-    // Fallback logic based on average score
     const avgScore = performanceData.averageScore;
     if (avgScore >= 80) {
       return "hard";
@@ -205,23 +142,16 @@ const TestStartPage = () => {
     }
   };
 
-  // Check user session and fetch performance data + AI prediction
   useEffect(() => {
-    if (!isClient) return; // Wait for client-side hydration
+    if (!isClient) return;
     
     if (status === "unauthenticated") {
-      if (typeof window !== 'undefined') {
-        toast.error("Please log in to create a test", {
-          duration: 3000,
-          position: "top-center",
-        });
-      }
+      console.log("Please log in to create a test"); // TOAST DISABLED
       router.push("/signin");
       return;
     }
 
     if (status === "authenticated") {
-      // Fetch user performance data first, then get AI prediction
       fetchUserPerformance().then((performanceData) => {
         fetchAIPredictedDifficulty(performanceData);
       });
@@ -242,36 +172,23 @@ const TestStartPage = () => {
 
       if (response.success) {
         console.log("Test created successfully with ID:", response.testId);
-        if (typeof window !== 'undefined') {
-          toast.success("Test created successfully!", {
-            position: "top-center",
-            duration: 3000,
-          });
-        }
         router.push(`/test/${response.testId}`);
       } else {
-        if (typeof window !== 'undefined') {
-          toast.error("Failed to create test. Please try again.");
-        }
+        console.error("Failed to create test. Please try again.");
       }
     } catch (error) {
       console.error("Error creating test:", error);
-      if (typeof window !== 'undefined') {
-        toast.error("An unexpected error occurred. Please try again.");
-      }
     }
 
     setIsLoading(false);
   };
 
-  // Function to manually refresh AI recommendation
   const refreshAIRecommendation = async () => {
     if (userPerformanceData) {
       await fetchAIPredictedDifficulty(userPerformanceData);
     }
   };
 
-  // Show loading while waiting for client-side hydration
   if (!isClient || status === "loading") {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -285,11 +202,11 @@ const TestStartPage = () => {
   }
 
   if (isLoading) {
-    const animationData = isDarkMode ? loadingAnimationDark : loadingAnimation;
+    // SIMPLIFIED LOADING WITHOUT LOTTIE
     return (
       <div className="flex flex-col items-center justify-center h-screen w-screen bg-white dark:bg-black fixed top-0 left-0 z-50">
-        <Lottie animationData={animationData} loop={true} className="w-1/2 h-1/2" />
-        <p className="mt-4 text-lg text-gray-800 dark:text-white bounce">Creating test...</p>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+        <p className="mt-4 text-lg text-gray-800 dark:text-white">Creating test...</p>
       </div>
     );
   }
@@ -305,7 +222,6 @@ const TestStartPage = () => {
       <div className="bg-white dark:bg-black border dark:border-zinc-800 shadow-lg rounded-lg p-6 mt-12">
         <h1 className="text-3xl font-bold mb-6">Initialize Test</h1>
         
-        {/* User Performance Summary */}
         {userPerformanceData && userPerformanceData.totalTests > 0 && (
           <div className="mb-6 p-4 bg-gray-50 dark:bg-neutral-900 rounded-lg">
             <h3 className="text-lg font-semibold mb-2">Your Performance Summary</h3>
@@ -403,23 +319,16 @@ const TestStartPage = () => {
               value={testDetails.difficulty}
               onChange={handleInputChange}
               className="w-full mt-1 rounded-md border border-gray-300 dark:border-neutral-600 shadow-sm px-4 py-2 bg-white dark:bg-neutral-800 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              aria-label="Select Difficulty Level"
             >
               <option value="easy">Easy</option>
               <option value="medium">Medium</option>
               <option value="hard">Hard</option>
             </select>
             <p className="text-sm text-gray-500 mt-1">
-              {isLoadingAI ? (
-                <span className="flex items-center">
-                  <span className="animate-spin mr-2">⚡</span>
-                  AI is analyzing your performance...
-                </span>
-              ) : userPerformanceData && userPerformanceData.totalTests > 0 ? (
-                "AI recommendation based on your test history (you can change it)."
-              ) : (
-                "Default difficulty for new users (AI will learn from your performance)."
-              )}
+              {isLoadingAI ? "AI is analyzing your performance..." : 
+               userPerformanceData && userPerformanceData.totalTests > 0 ? 
+               "AI recommendation based on your test history." : 
+               "Default difficulty for new users."}
             </p>
           </div>
 
