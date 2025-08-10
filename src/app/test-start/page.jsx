@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createTest } from "@/actions/testActions";
-// import toast from "react-hot-toast";  // TEMPORARILY COMMENTED OUT
+import toast from "react-hot-toast";
 import Link from "next/link";
 // import Lottie from 'lottie-react';  // TEMPORARILY COMMENTED OUT
 // import loadingAnimation from '../../../public/loading2.json';  // TEMPORARILY COMMENTED OUT
@@ -106,8 +106,20 @@ const TestStartPage = () => {
           difficulty: data.predicted_difficulty.toLowerCase(),
         }));
         
-        // TOAST TEMPORARILY DISABLED
-        console.log(`AI suggested "${data.predicted_difficulty}" difficulty`);
+        // Show success message with confidence and reasoning
+        const confidenceText = data.confidence ? ` (${data.confidence}% confidence)` : '';
+        const reasoningText = data.suggestion ? ` - ${data.suggestion}` : '';
+        
+        // Show toast with SSR safety
+        if (typeof window !== 'undefined') {
+          toast.success(
+            `AI suggested "${data.predicted_difficulty}" difficulty${confidenceText}${reasoningText}`, 
+            {
+              position: "top-center",
+              duration: 5000,
+            }
+          );
+        }
       }
     } catch (err) {
       console.error("AI prediction failed:", err);
@@ -117,6 +129,19 @@ const TestStartPage = () => {
           ...prev,
           difficulty: fallbackDifficulty,
         }));
+        if (typeof window !== 'undefined') {
+          toast.success(`Based on your performance, we recommend "${fallbackDifficulty}" difficulty`, {
+            position: "top-center",
+            duration: 4000,
+          });
+        }
+      } else {
+        if (typeof window !== 'undefined') {
+          toast.error("Failed to get AI difficulty suggestion. Using your current selection.", {
+            position: "top-center",
+            duration: 3000,
+          });
+        }
       }
     } finally {
       setIsLoadingAI(false);
@@ -146,7 +171,12 @@ const TestStartPage = () => {
     if (!isClient) return;
     
     if (status === "unauthenticated") {
-      console.log("Please log in to create a test"); // TOAST DISABLED
+      if (typeof window !== 'undefined') {
+        toast.error("Please log in to create a test", {
+          duration: 3000,
+          position: "top-center",
+        });
+      }
       router.push("/signin");
       return;
     }
@@ -172,12 +202,23 @@ const TestStartPage = () => {
 
       if (response.success) {
         console.log("Test created successfully with ID:", response.testId);
+        if (typeof window !== 'undefined') {
+          toast.success("Test created successfully!", {
+            position: "top-center",
+            duration: 3000,
+          });
+        }
         router.push(`/test/${response.testId}`);
       } else {
-        console.error("Failed to create test. Please try again.");
+        if (typeof window !== 'undefined') {
+          toast.error("Failed to create test. Please try again.");
+        }
       }
     } catch (error) {
       console.error("Error creating test:", error);
+      if (typeof window !== 'undefined') {
+        toast.error("An unexpected error occurred. Please try again.");
+      }
     }
 
     setIsLoading(false);
