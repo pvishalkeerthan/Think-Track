@@ -18,6 +18,7 @@ const TestStartPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [userPerformanceData, setUserPerformanceData] = useState(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const router = useRouter();
 
   const [testDetails, setTestDetails] = useState({
@@ -28,6 +29,26 @@ const TestStartPage = () => {
     timeLimit: 30,
     tags: "",
   });
+
+  // Check for dark mode on client side
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      setIsDarkMode(document.body.classList.contains('dark'));
+      
+      // Optional: Listen for dark mode changes
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+            setIsDarkMode(document.body.classList.contains('dark'));
+          }
+        });
+      });
+      
+      observer.observe(document.body, { attributes: true });
+      
+      return () => observer.disconnect();
+    }
+  }, []);
 
   // Function to fetch user's performance data
   const fetchUserPerformance = async () => {
@@ -245,7 +266,7 @@ const TestStartPage = () => {
   }
 
   if (isLoading) {
-    const animationData = document.body.classList.contains('dark') ? loadingAnimationDark : loadingAnimation;
+    const animationData = isDarkMode ? loadingAnimationDark : loadingAnimation;
     return (
       <div className="flex flex-col items-center justify-center h-screen w-screen bg-white dark:bg-black fixed top-0 left-0 z-50">
         <Lottie animationData={animationData} loop={true} className="w-1/2 h-1/2" />
