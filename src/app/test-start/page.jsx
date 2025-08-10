@@ -19,6 +19,7 @@ const TestStartPage = () => {
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [userPerformanceData, setUserPerformanceData] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const router = useRouter();
 
   const [testDetails, setTestDetails] = useState({
@@ -30,9 +31,10 @@ const TestStartPage = () => {
     tags: "",
   });
 
-  // Check for dark mode on client side
+  // Check for dark mode on client side only
   useEffect(() => {
-    if (typeof document !== 'undefined') {
+    setIsClient(true);
+    if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       setIsDarkMode(document.body.classList.contains('dark'));
       
       // Optional: Listen for dark mode changes
@@ -135,13 +137,15 @@ const TestStartPage = () => {
         const confidenceText = data.confidence ? ` (${data.confidence}% confidence)` : '';
         const reasoningText = data.suggestion ? ` - ${data.suggestion}` : '';
         
-        toast.success(
-          `AI suggested "${data.predicted_difficulty}" difficulty${confidenceText}${reasoningText}`, 
-          {
-            position: "top-center",
-            duration: 5000,
-          }
-        );
+        if (typeof window !== 'undefined') {
+          toast.success(
+            `AI suggested "${data.predicted_difficulty}" difficulty${confidenceText}${reasoningText}`, 
+            {
+              position: "top-center",
+              duration: 5000,
+            }
+          );
+        }
         
         // Log detailed AI analysis for debugging
         if (data.factors) {
@@ -160,15 +164,19 @@ const TestStartPage = () => {
           ...prev,
           difficulty: fallbackDifficulty,
         }));
-        toast.success(`Based on your performance, we recommend "${fallbackDifficulty}" difficulty`, {
-          position: "top-center",
-          duration: 4000,
-        });
+        if (typeof window !== 'undefined') {
+          toast.success(`Based on your performance, we recommend "${fallbackDifficulty}" difficulty`, {
+            position: "top-center",
+            duration: 4000,
+          });
+        }
       } else {
-        toast.error("Failed to get AI difficulty suggestion. Using your current selection.", {
-          position: "top-center",
-          duration: 3000,
-        });
+        if (typeof window !== 'undefined') {
+          toast.error("Failed to get AI difficulty suggestion. Using your current selection.", {
+            position: "top-center",
+            duration: 3000,
+          });
+        }
       }
     } finally {
       setIsLoadingAI(false);
@@ -199,11 +207,15 @@ const TestStartPage = () => {
 
   // Check user session and fetch performance data + AI prediction
   useEffect(() => {
+    if (!isClient) return; // Wait for client-side hydration
+    
     if (status === "unauthenticated") {
-      toast.error("Please log in to create a test", {
-        duration: 3000,
-        position: "top-center",
-      });
+      if (typeof window !== 'undefined') {
+        toast.error("Please log in to create a test", {
+          duration: 3000,
+          position: "top-center",
+        });
+      }
       router.push("/signin");
       return;
     }
@@ -214,7 +226,7 @@ const TestStartPage = () => {
         fetchAIPredictedDifficulty(performanceData);
       });
     }
-  }, [status, router]);
+  }, [status, router, isClient]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -230,17 +242,23 @@ const TestStartPage = () => {
 
       if (response.success) {
         console.log("Test created successfully with ID:", response.testId);
-        toast.success("Test created successfully!", {
-          position: "top-center",
-          duration: 3000,
-        });
+        if (typeof window !== 'undefined') {
+          toast.success("Test created successfully!", {
+            position: "top-center",
+            duration: 3000,
+          });
+        }
         router.push(`/test/${response.testId}`);
       } else {
-        toast.error("Failed to create test. Please try again.");
+        if (typeof window !== 'undefined') {
+          toast.error("Failed to create test. Please try again.");
+        }
       }
     } catch (error) {
       console.error("Error creating test:", error);
-      toast.error("An unexpected error occurred. Please try again.");
+      if (typeof window !== 'undefined') {
+        toast.error("An unexpected error occurred. Please try again.");
+      }
     }
 
     setIsLoading(false);
@@ -253,7 +271,8 @@ const TestStartPage = () => {
     }
   };
 
-  if (status === "loading") {
+  // Show loading while waiting for client-side hydration
+  if (!isClient || status === "loading") {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-lg">Loading...</div>
